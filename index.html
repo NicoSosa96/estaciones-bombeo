@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estado de Estación - Obra Pública</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #e9eef4; margin: 0; padding: 15px; color: #333; }
+    .wrap { max-width: 500px; margin: auto; }
+    .hdr { background: #1e3a5f; color: #fff; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 16px; }
+    .hdr h1 { margin: 0; font-size: 22px; }
+    .card { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 8px rgba(0,0,0,.08); margin-bottom: 16px; }
+    .bhdr { background: #2c4d75; color: #fff; padding: 12px 16px; display: flex; justify-content: space-between; font-weight: bold; }
+    .st { padding: 10px; text-align: center; font-weight: bold; font-size: 14px; }
+    .cnt { padding: 15px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+    .box { background: #f8f9fa; padding: 9px; border-radius: 8px; border-left: 4px solid #1e3a5f; }
+    .box span { display: block; font-size: 11px; color: #666; }
+    .obs { background: #eef2f7; padding: 11px; border-radius: 8px; margin-top: 8px; font-size: 14px; }
+    .loading { text-align: center; padding: 40px; font-weight: bold; color: #1e3a5f; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hdr">
+      <h1 id="titulo">Cargando estación...</h1>
+      <p style="margin:5px 0 0;opacity:.85;font-size:14px;">Monitoreo Predictivo • Obra Pública</p>
+    </div>
+    <div id="contenido"><div class="loading">⏳ Consultando última medición...</div></div>
+  </div>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbz1VKXWuWOdET9svAM1BQ0l0xrWGpI37xZXXNs2SJq2x9Ifl_pDgzFBKjGb2aoLe3X8Lg/exec";
+    const params = new URLSearchParams(window.location.search);
+    const estacion = params.get("estacion") || "Tapia";
+    document.getElementById("titulo").innerText = "Estación " + estacion;
+
+    fetch(API_URL + "?estacion=" + encodeURIComponent(estacion))
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          document.getElementById("contenido").innerHTML = "<div class='card'><p style='padding:20px;text-align:center;'>" + data.error + "</p></div>";
+          return;
+        }
+        let html = "";
+        data.bombas.forEach(b => {
+          if (b.sinDatos) {
+            html += `<div class="card"><div class="bhdr"><span>${b.bomba}</span></div><p style="padding:20px;text-align:center;color:#777;">Sin mediciones registradas aún.</p></div>`;
+          } else {
+            let col = "#28a745", txt = "🟢 FUNCIONAMIENTO NORMAL", txtCol = "#fff";
+            if (b.est === "Irregularidad leve") { col = "#ffc107"; txt = "🟡 EN OBSERVACIÓN (LEVE)"; txtCol = "#000"; }
+            if (b.est === "Crítico") { col = "#dc3545"; txt = "🔴 CRÍTICO / EN REPARACIÓN"; }
+            html += `
+            <div class="card">
+              <div class="bhdr"><span>${b.bomba}</span><small style="font-weight:normal;">Inspección: ${b.fecha}</small></div>
+              <div class="st" style="background:${col};color:${txtCol};">${txt}</div>
+              <div class="cnt">
+                <div class="grid">
+                  <div class="box"><span>Velocidad</span><strong>${b.rpm} RPM</strong></div>
+                  <div class="box"><span>Horas Uso</span><strong>${b.hrs} hs</strong></div>
+                  <div class="box"><span>Temp P1/P2</span><strong>${b.t1}°C / ${b.t2}°C</strong></div>
+                  <div class="box"><span>Temp P3/P4</span><strong>${b.t3}°C / ${b.t4}°C</strong></div>
+                </div>
+                <div class="box"><span>Lubricada en última visita</span><strong>${b.lub}</strong></div>
+                <div class="obs"><strong>Resumen:</strong><p style="margin:4px 0 0;">${b.obs || "Sin observaciones."}</p></div>
+              </div>
+            </div>`;
+          }
+        });
+        document.getElementById("contenido").innerHTML = html;
+      })
+      .catch(() => {
+        document.getElementById("contenido").innerHTML = "<div class='card'><p style='padding:20px;text-align:center;color:red;'>Error de conexión al cargar datos.</p></div>";
+      });
+  </script>
+</body>
+</html>
